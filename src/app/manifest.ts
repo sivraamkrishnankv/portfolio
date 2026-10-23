@@ -6,8 +6,8 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Siv Raam",
     start_url: "/",
     display: "browser",
-    background_color: "#1b1510",
-    theme_color: "#1b1510",
+    background_color: "#0a0d14",
+    theme_color: "#0a0d14",
     icons: [{ src: "/icon-512.png", sizes: "512x512", type: "image/png" }],
   };
 }

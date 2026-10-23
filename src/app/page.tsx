@@ -1,189 +1,127 @@
-import { about, chapters, contact, person, work, type Chapter } from "@/content";
-import { Exploded } from "@/components/Exploded";
-import { Gate } from "@/components/Gate";
-import { bookHref, bookProps } from "@/lib/booking";
-import { formatDay, getStreak } from "@/lib/shuttle";
+import { Fragment } from "react";
+import Link from "next/link";
+import { about, chapters, contact, person, scout, work } from "@/content";
+import { Book } from "@/components/Book";
+import { FlowDiagram } from "@/components/FlowDiagram";
+import { NetworkSphere } from "@/components/NetworkSphere";
+import { ProjectCard } from "@/components/ProjectCard";
+import { getStreak } from "@/lib/shuttle";
 
-function Book({ className = "btn" }: { className?: string }) {
-  return (
-    <a className={className} href={bookHref} {...bookProps}>
-      Book a 30-min call
-    </a>
-  );
-}
-
-function ChapterSection({ c, children }: { c: Chapter; children?: React.ReactNode }) {
-  return (
-    <section className={c.compact ? "chapter chapter-compact" : "chapter"} id={c.id} aria-labelledby={`${c.id}-h`}>
-      <header className="chapter-head">
-        <p className="chapter-no">{c.number}</p>
-        <h2 id={`${c.id}-h`}>{c.name}</h2>
-        <p className="chapter-tag">{c.tagline}</p>
-      </header>
-      <div className="chapter-story">
-        {c.story.map((p) => <p key={p.slice(0, 24)}>{p}</p>)}
-      </div>
-
-      <figure className={`explode explode-${c.drawing}`}>
-        <Exploded variant={c.drawing} layers={c.layers} label={`${c.layersTitle}: ${c.layers.map((l) => l.title).join(", ")}`} />
-        {c.drawing === "chain" && <Exploded className="phone-only" layers={c.layers} label={`${c.layersTitle}: ${c.layers.map((l) => l.title).join(", ")}`} />}
-        <figcaption>
-          <p className="explode-title">{c.layersTitle}</p>
-          <ol>
-            {c.layers.map((l) => (
-              <li key={l.title}><b>{l.title}</b> {l.detail}</li>
-            ))}
-          </ol>
-        </figcaption>
-      </figure>
-
-      {children}
-
-      <div className="decisions">
-        <h3 className="sr-only">Decisions</h3>
-        {c.decisions.map((d) => (
-          <div key={d.title}>
-            <h4>{d.title}</h4>
-            <p>{d.body}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="broke">
-        <h3>{c.brokeTitle}</h3>
-        <div className="broke-list">
-          {c.broke.map((b) => (
-            <div key={b.title}>
-              <h4>{b.title}</h4>
-              <p>{b.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <p className="chapter-facts">
-        {c.facts} <span className="stack">Built with {c.stack}.</span>{" "}
-        <a href={c.repo}>Code on GitHub<span className="sr-only">: {c.repoLabel}</span></a>
-      </p>
-    </section>
-  );
+function Words({ text, start = 0 }: { text: string; start?: number }) {
+  // each word rises out of its own line box; screen readers get the plain name from aria-label
+  return text.split(" ").map((w, i) => (
+    <Fragment key={w + i}>
+      {i > 0 && " "}
+      <span className="w" aria-hidden="true"><span style={{ "--i": start + i } as React.CSSProperties}>{w}</span></span>
+    </Fragment>
+  ));
 }
 
 export default async function Home() {
   const streak = await getStreak();
-  const ticks = Math.min(streak.count, 42);
-  const [first, second, third] = chapters;
 
   return (
-    <>
-      <a className="skip" href="#main">Skip to content</a>
-      <main id="main">
-        <section className="scene" aria-labelledby="name">
-          <picture>
-            <source media="(max-width: 760px)" srcSet="/img/hero-tall.webp" width={900} height={1176} />
-            <img className="scene-img" src="/img/hero-wide.webp" width={2000} height={1873} alt="Siv Raam Krishnan K.V in a navy suit, standing in a wood-panelled lecture hall" fetchPriority="high" />
-          </picture>
-          <nav className="top" aria-label="Primary">
-            <a className="mark" href="#main">Siv Raam Krishnan K.V</a>
-            <span className="top-links">
-              <a href="#scout">Work</a>
-              <a href="#at-work">Experience</a>
-              <a href="#contact">Contact</a>
-            </span>
-          </nav>
-          <div className="title">
-            <p className="kicker"><b>{person.role}</b> at {person.employer}</p>
-            <h1 id="name">{person.name}</h1>
-            <p className="lede">{person.lede}</p>
-            <div className="actions">
+    <main>
+      <section className="hero" aria-labelledby="name">
+        <NetworkSphere />
+        <div className="hero-in">
+          <div className="hero-text">
+            <p className="kick"><span className="live" aria-hidden="true" />{person.role} at {person.employer}</p>
+            <h1 id="name" aria-label={person.name}>
+              {person.nameLines.map((l, i) => <span className="line" key={l}><Words text={l} start={i * 2} /></span>)}
+            </h1>
+            <p className="lede">
+              {person.ledeParts.map(([t, strong], i) => (strong ? <b key={i}>{t}</b> : <span key={i}>{t}</span>))}
+            </p>
+            <div className="acts">
               <Book />
-              <span className="links">
-                <a href={person.whatsapp}>WhatsApp</a>
-                <a href={`mailto:${person.email}`}>Email</a>
-                <a href={person.cv} download>Download CV</a>
-              </span>
+              <Link className="btn btn-ghost" href="#work">See the work</Link>
+              <a className="btn btn-ghost" href={person.cv} download>Download CV</a>
             </div>
-          </div>
-          <div className="credits">
-            <a className="reel" href="#shuttle-poll">
-              <span className="reel-text">
-                <b>shuttle-poll</b> ran at 5:30 PM, {streak.count} evenings in a row
-                <span className="reel-dates"> ({formatDay(streak.since)} to {formatDay(streak.until)})</span>
-              </span>
-              <span className="runs" aria-hidden="true">
-                {Array.from({ length: ticks }, (_, i) => <i key={i} style={{ "--n": i } as React.CSSProperties} />)}
-              </span>
-            </a>
-            <ul className="roll" aria-label="Three chapters">
-              {chapters.map((c) => (
-                <li key={c.id}><a href={`#${c.id}`}><b>{c.name}</b>{c.tagline}</a></li>
-              ))}
+            <ul className="hero-facts">
+              <li><Link href="/work/scout"><b>190</b> tests behind SCOUT</Link></li>
+              <li><Link href="/work/valkyrie"><b>25</b> tools in VALKYRIE</Link></li>
+              <li><Link href="/work/shuttle-poll"><b>{streak.count}</b> evenings in a row, shuttle-poll{streak.live && <span className="live live-sm" aria-label="live from GitHub" />}</Link></li>
             </ul>
           </div>
-        </section>
-
-        <ChapterSection c={first}>
-          <Gate />
-        </ChapterSection>
-
-        <ChapterSection c={second}>
-          <figure className="shot">
-            <picture>
-              <source media="(max-width: 760px)" srcSet="/img/valkyrie-trace-phone.webp" width={900} height={702} />
-              <img src="/img/valkyrie-trace.webp" width={1600} height={1085} loading="lazy" alt="VALKYRIE dashboard, reasoning trace for the message 'Launch chrome than': one launch_application tool call with app_name chrome, its result, and the reply" />
-            </picture>
-            <figcaption>A real trace from my development log: one message from my phone, one tool call, then the reply. Private entries were removed from the log before this screenshot.</figcaption>
+          <figure className="portrait">
+            <img src="/img/portrait.webp" width={760} height={950} alt="Siv Raam Krishnan K.V in a navy suit" />
+            <figcaption><span className="live" aria-hidden="true" />{person.portraitNote}</figcaption>
           </figure>
-        </ChapterSection>
+        </div>
+        <a className="cue" href="#work" aria-hidden="true" tabIndex={-1}>Scroll<i /></a>
+      </section>
 
-        <ChapterSection c={third} />
+      <section className="sec" id="work" aria-labelledby="work-h">
+        <p className="eyebrow" data-reveal>Selected work</p>
+        <h2 id="work-h" data-reveal>Three systems I built</h2>
+        <p className="sec-intro" data-reveal>Each one runs by itself, and each one has a place where it stops for a person.</p>
+        <div className="cards">
+          {chapters.map((c, i) => (
+            <div key={c.slug} data-reveal style={{ "--d": i } as React.CSSProperties} className={i === 0 ? "cards-first" : undefined}>
+              <ProjectCard c={c} featured={i === 0} />
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <section className="atwork" id="at-work" aria-labelledby="at-work-h">
-          <h2 id="at-work-h">{work.heading}</h2>
-          <div className="jobs">
-            {work.jobs.map((j) => (
-              <article key={j.org} className="job">
-                <header>
-                  <h3>{j.org}</h3>
-                  <p>{j.role} <span className="dates">{j.dates}</span></p>
-                </header>
-                <div>
-                  <p>{j.body}</p>
-                  {j.items.length > 0 && (
-                    <dl>
-                      {j.items.map((it) => (
-                        <div key={it.name}><dt>{it.name}</dt><dd>{it.body}</dd></div>
-                      ))}
-                    </dl>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-          <p className="note">{work.note}</p>
-          <div className="smaller">
-            <h3>Also on my GitHub and PyPI</h3>
-            <dl>
-              {work.smaller.map((s) => (
-                <div key={s.name}><dt>{s.name}</dt><dd>{s.body}</dd></div>
-              ))}
-            </dl>
-          </div>
-        </section>
+      <section className="sec" id="how" aria-labelledby="how-h">
+        <p className="eyebrow" data-reveal>SCOUT, live</p>
+        <h2 id="how-h" data-reveal>{scout.flowTitle}</h2>
+        <p className="sec-intro" data-reveal>{scout.flowIntro}</p>
+        <div className="diagram" data-reveal><FlowDiagram flow={scout.flow} /></div>
+        <p className="more" data-reveal><Link href="/work/scout">Read the full SCOUT case study <span aria-hidden="true">→</span></Link></p>
+      </section>
 
-        <section className="about" id="about" aria-labelledby="about-h">
-          <div>
-            <h2 id="about-h">{about.heading}</h2>
-            {about.body.map((p) => <p key={p.slice(0, 20)} className="about-lede">{p}</p>)}
-          </div>
+      <section className="sec" id="experience" aria-labelledby="exp-h">
+        <p className="eyebrow" data-reveal>Experience</p>
+        <h2 id="exp-h" data-reveal>{work.heading}</h2>
+        <ol className="jobs">
+          {work.jobs.map((j) => (
+            <li key={j.org} className="job" data-reveal>
+              <div className="job-head">
+                <h3>{j.org}</h3>
+                <p>{j.role}</p>
+                <p className="dates">{j.dates}</p>
+              </div>
+              <div className="job-body">
+                <p>{j.body}</p>
+                {j.items.length > 0 && (
+                  <dl>
+                    {j.items.map((it) => <div key={it.name}><dt>{it.name}</dt><dd>{it.body}</dd></div>)}
+                  </dl>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="note" data-reveal>{work.note}</p>
+        <div className="smaller" data-reveal>
+          <h3>Also shipped</h3>
           <dl>
-            {about.facts.map((f) => (
-              <div key={f.label}><dt>{f.label}</dt><dd>{f.body}</dd></div>
+            {work.smaller.map((s) => (
+              <div key={s.name}>
+                <dt>{s.name}</dt>
+                <dd>{s.body}{s.href && <> <a href={s.href}>{s.linkLabel}</a></>}</dd>
+              </div>
             ))}
           </dl>
-        </section>
+        </div>
+      </section>
 
-        <section className="contact" id="contact" aria-labelledby="contact-h">
+      <section className="sec about" id="about" aria-labelledby="about-h">
+        <div>
+          <p className="eyebrow" data-reveal>About</p>
+          <h2 id="about-h" data-reveal>{about.heading}</h2>
+          {about.body.map((p) => <p key={p.slice(0, 20)} className="about-lede" data-reveal>{p}</p>)}
+        </div>
+        <dl className="about-facts">
+          {about.facts.map((f) => <div key={f.label} data-reveal><dt>{f.label}</dt><dd>{f.body}</dd></div>)}
+        </dl>
+      </section>
+
+      <section className="sec contact" id="contact" aria-labelledby="contact-h">
+        <div className="contact-card" data-reveal>
           <h2 id="contact-h">{contact.heading}</h2>
           <p>{contact.body}</p>
           <Book className="btn btn-lg" />
@@ -193,13 +131,8 @@ export default async function Home() {
             <li><span>CV</span><a href={person.cv} download>Download the PDF</a></li>
             <li><span>Elsewhere</span><a href={person.linkedin}>LinkedIn</a> <a href={person.github}>GitHub</a></li>
           </ul>
-        </section>
-      </main>
-      <footer className="foot">
-        <p>{person.name}. Designed and built by me.</p>
-        <a href="#main">Back to top</a>
-      </footer>
-    </>
+        </div>
+      </section>
+    </main>
   );
 }
-

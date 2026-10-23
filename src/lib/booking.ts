@@ -1,8 +1,8 @@
 import { person } from "@/content";
 
-// Set NEXT_PUBLIC_CAL_LINK to the Cal.com event path, e.g. "sivraam/30min".
-// Until it is set, "Book a 30-min call" opens an email with the request filled in.
-export const CAL_LINK = process.env.NEXT_PUBLIC_CAL_LINK ?? "";
+// The Cal.com event path behind "Book a 30-min call". NEXT_PUBLIC_CAL_LINK overrides it; set it to an
+// empty string to fall back to a pre-filled email instead.
+export const CAL_LINK = process.env.NEXT_PUBLIC_CAL_LINK ?? "siv-raam-krishnan-k-v/30min";
 
 export const bookHref = CAL_LINK
   ? `https://cal.com/${CAL_LINK}`

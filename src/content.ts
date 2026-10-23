@@ -2,9 +2,14 @@
 
 export const person = {
   name: "Siv Raam Krishnan K.V",
+  short: "Siv Raam",
+  nameLines: ["Siv Raam", "Krishnan K.V"],
   role: "AI Engineer",
   employer: "Voxiis",
   lede: "I build software that runs on its own, checks its own work, and stops to ask a person before anything important.",
+  /** The same sentence, with the three promises marked for emphasis. */
+  ledeParts: [["I build software that ", false], ["runs on its own", true], [", ", false], ["checks its own work", true], [", and ", false], ["stops to ask a person", true], [" before anything important.", false]] as [string, boolean][],
+  portraitNote: "The person in the loop",
   email: "sivraamkrishnankv@gmail.com",
   phone: "+91 88837 11103",
   phoneHref: "tel:+918883711103",
@@ -14,20 +19,34 @@ export const person = {
   cv: "/Siv-Raam-Krishnan-KV-CV.pdf",
 };
 
-export type Layer = { title: string; detail: string; glyph: Glyph };
-export type Glyph = "mail" | "filter" | "doc" | "check" | "log" | "chat" | "shield" | "mic" | "tools" | "screen" | "clock" | "play" | "code" | "send" | "poll";
+/* ── Live diagrams ────────────────────────────────────────────────────
+   Nodes sit on a grid: `d` is [column, row] on wide screens, `m` on phones.
+   Edges are [from, to, label, isLoopBack?]. A run is the route one item takes,
+   with the caption shown at each stop. */
+export type NodeKind = "source" | "code" | "model" | "you" | "fail";
+export type FlowNode = { id: string; kind: NodeKind; title: string; body: string; d: [number, number]; m: [number, number]; small?: boolean; gate?: boolean };
+export type Flow = {
+  label: string;
+  cols: number;
+  kinds?: Partial<Record<NodeKind, string>>;
+  nodes: FlowNode[];
+  /** [from, to, label, "back" for a loop back to an earlier step] */
+  edges: [string, string, string, "back"?][];
+  runs: { item: string; steps: [string, string][] }[];
+  still: string;
+};
 
 export type Chapter = {
-  id: string;
+  slug: string;
   number: string;
   name: string;
   tagline: string;
+  proof: string[];
+  tags: string[];
   story: string[];
-  layersTitle: string;
-  drawing: "stack" | "chain";
-  /** The first chapter is told in full; later ones use a tighter layout so the page doesn't repeat itself. */
-  compact: boolean;
-  layers: Layer[];
+  flowTitle: string;
+  flowIntro: string;
+  flow: Flow;
   decisions: { title: string; body: string }[];
   brokeTitle: string;
   broke: { title: string; body: string }[];
@@ -38,24 +57,74 @@ export type Chapter = {
 };
 
 export const scout: Chapter = {
-  id: "scout",
-  number: "Chapter one",
+  slug: "scout",
+  number: "01",
   name: "SCOUT",
   tagline: "A job-application agent that asks before it sends.",
+  proof: ["Approval enforced in code, not in a prompt", "Every resume line fact-checked against my CV", "190 tests written as business rules"],
+  tags: ["Claude Code", "Claude in Chrome", "Node.js", "Python"],
   story: [
     "Applying for a job means finding the role, checking the fit, rewriting a resume and typing the same answers again. SCOUT does that work inside my own Chrome. It reads job alerts in Gmail, keeps the roles that fit, writes a one-page resume for each from my CV, and fills in the form.",
     "Then it stops. Nothing is submitted until I approve it, and that rule is enforced in code, not in a prompt, so the model cannot talk its way past it.",
   ],
-  layersTitle: "SCOUT, taken apart",
-  drawing: "stack",
-  compact: false,
-  layers: [
-    { glyph: "mail", title: "Search", detail: "Reads job alerts in Gmail, inside my own browser." },
-    { glyph: "filter", title: "Curate", detail: "Code cleans each link and removes duplicates by the employer's job ID. The model only judges fit." },
-    { glyph: "doc", title: "Optimise", detail: "The model drafts the resume. Code builds the PDF and fact-checks every line against my CV." },
-    { glyph: "check", title: "Approve", detail: "Fills the form from saved answers, shows me an approval card, and submits once." },
-    { glyph: "log", title: "Track", detail: "Every step goes into an append-only log, mirrored to Google Drive." },
-  ],
+  flowTitle: "How one job moves through SCOUT",
+  flowIntro: "Plain code does everything code can decide. The model is used only for judgement. And nothing is sent until I approve it.",
+  flow: {
+    label: "SCOUT pipeline",
+    cols: 5,
+    nodes: [
+      { id: "gmail", kind: "source", title: "Gmail job alerts", body: "Read inside my own Chrome by Claude in Chrome.", d: [1, 1], m: [1, 1] },
+      { id: "clean", kind: "code", title: "Clean and dedupe", body: "Cleans each link, drops duplicates by the employer's job ID, filters titles.", d: [2, 1], m: [1, 2] },
+      { id: "fit", kind: "model", title: "Fit check", body: "Does the role fit, and am I eligible?", d: [3, 1], m: [1, 3] },
+      { id: "nofit", kind: "code", title: "Not a fit", body: "Logged with the reason.", d: [3, 2], m: [2, 3], small: true },
+      { id: "resume", kind: "model", title: "Resume draft", body: "A one-page resume for this role, written from my master CV.", d: [4, 1], m: [1, 4] },
+      { id: "check", kind: "code", title: "Build and fact-check", body: "Builds the PDF and refuses any claim that is not in my CV.", d: [5, 1], m: [1, 5] },
+      { id: "fill", kind: "code", title: "Fill the form", body: "Answers come from a saved answer bank. A new legal question parks the job.", d: [5, 3], m: [1, 6] },
+      { id: "approve", kind: "you", title: "Approval card", body: "Nothing is sent until I approve. Enforced in code.", d: [4, 3], m: [1, 7], gate: true },
+      { id: "submit", kind: "code", title: "Submit once", body: "Recorded before the click, clicked once, confirmation checked.", d: [3, 3], m: [1, 8] },
+      { id: "track", kind: "code", title: "Tracker and Drive", body: "Append-only log, mirrored to Google Drive.", d: [2, 3], m: [1, 9] },
+    ],
+    edges: [
+      ["gmail", "clean", "job links"],
+      ["clean", "fit", "new job"],
+      ["fit", "nofit", "no"],
+      ["fit", "resume", "fits"],
+      ["resume", "check", "resume spec"],
+      ["check", "resume", "claim not in CV", "back"],
+      ["check", "fill", "verified PDF"],
+      ["fill", "approve", "filled form"],
+      ["approve", "submit", "approved"],
+      ["submit", "track", "confirmed"],
+    ],
+    runs: [
+      {
+        item: "Backend SDE",
+        steps: [
+          ["gmail", "A job alert lands in Gmail. (Press Approve at any time to skip ahead.)"],
+          ["clean", "Plain code, not the model, cleans the link and checks the job is new."],
+          ["fit", "The model judges one thing: does this role fit?"],
+          ["resume", "The model drafts a one-page resume from my CV."],
+          ["check", "One claim is not in my CV. Refused, and sent back."],
+          ["resume", "Redrafted without the refused claim."],
+          ["check", "Every line traces to my CV. The PDF passes."],
+          ["fill", "The form is filled from saved answers."],
+          ["approve", "It stops here, every time. Press Approve."],
+          ["submit", "Recorded first, clicked once, and the confirmation page checked in code."],
+          ["track", "Logged in an append-only tracker, mirrored to Google Drive. Next job."],
+        ],
+      },
+      {
+        item: "Java Lead, 10+ yrs",
+        steps: [
+          ["gmail", "Another alert."],
+          ["clean", "Cleaned, and not seen before."],
+          ["fit", "Ten years of Java is not me. The model says no."],
+          ["nofit", "Logged as not a fit, with the reason. Nothing else happens."],
+        ],
+      },
+    ],
+    still: "Every job takes this route. Nothing is sent until I approve it.",
+  },
   decisions: [
     {
       title: "Code decides what code can decide",
@@ -84,28 +153,80 @@ export const scout: Chapter = {
   facts: "5 stages, 14 job-site playbooks, and 190 automated tests written as business rules.",
   stack: "Claude Code, Claude in Chrome, Node.js, Python, Gmail, Google Drive",
   repo: "https://github.com/sivraamkrishnankv/scout",
-  repoLabel: "github.com/sivraamkrishnankv/scout",
+  repoLabel: "sivraamkrishnankv/scout",
 };
 
 export const valkyrie: Chapter = {
-  id: "valkyrie",
-  number: "Chapter two",
+  slug: "valkyrie",
+  number: "02",
   name: "VALKYRIE",
   tagline: "An assistant I text from my phone that works on my PC.",
+  proof: ["Only I can talk to it", "25 tools, each with hard limits", "Every step saved and shown live"],
+  tags: ["LangGraph", "faster-whisper", "FastAPI", "Next.js"],
   story: [
     "VALKYRIE is a private assistant on Telegram. I send a message or a voice note, and it acts on my own computer: it checks system health, takes a screenshot, finds a file, sets a reminder or opens an app.",
     "Every step it takes is saved and shown on a dashboard, so I can see exactly what it did and why. It was my final-year engineering project.",
   ],
-  layersTitle: "VALKYRIE, taken apart",
-  drawing: "stack",
-  compact: true,
-  layers: [
-    { glyph: "chat", title: "Telegram", detail: "A text or a voice note from my phone." },
-    { glyph: "shield", title: "Whitelist", detail: "Messages from anyone else are dropped without a reply, and the attempt is logged." },
-    { glyph: "mic", title: "Speech to text", detail: "Voice notes are transcribed on my own machine with faster-whisper." },
-    { glyph: "tools", title: "Agent", detail: "A LangGraph agent picks from 25 tools: files, apps, processes, reminders, screenshots, web search." },
-    { glyph: "screen", title: "Dashboard", detail: "Every command, tool call and reasoning step is saved, then streamed live to the dashboard." },
-  ],
+  flowTitle: "How one message moves through VALKYRIE",
+  flowIntro: "The whitelist comes first, speech is transcribed on my own machine, and every tool call is saved and shown live.",
+  flow: {
+    label: "VALKYRIE message flow",
+    cols: 5,
+    nodes: [
+      { id: "tg", kind: "source", title: "Telegram", body: "A text or a voice note, from me or from anyone who finds the bot.", d: [1, 1], m: [1, 1] },
+      { id: "wl", kind: "code", title: "Whitelist", body: "Checks the sender's Telegram ID before anything else runs.", d: [2, 1], m: [1, 2] },
+      { id: "drop", kind: "code", title: "Dropped", body: "No reply. The attempt is logged.", d: [2, 2], m: [2, 2], small: true },
+      { id: "stt", kind: "model", title: "Speech to text", body: "Voice notes are transcribed on my own PC with faster-whisper.", d: [3, 1], m: [1, 3] },
+      { id: "agent", kind: "model", title: "LangGraph agent", body: "Decides which tool to use. The model behind it is swappable.", d: [4, 1], m: [1, 4] },
+      { id: "reply", kind: "you", title: "Reply on my phone", body: "Back in the chat.", d: [5, 1], m: [2, 4], small: true },
+      { id: "tools", kind: "code", title: "25 tools on my PC", body: "Files under one root folder, 12 allowed apps, 9 processes it can never kill.", d: [4, 3], m: [1, 5] },
+      { id: "db", kind: "code", title: "SQLite log", body: "Every command, tool call and reasoning step is saved.", d: [3, 3], m: [1, 6] },
+      { id: "dash", kind: "code", title: "Dashboard", body: "FastAPI streams each step live to a Next.js dashboard.", d: [2, 3], m: [1, 7] },
+    ],
+    edges: [
+      ["tg", "wl", "message"],
+      ["wl", "drop", "not me"],
+      ["wl", "agent", "text"],
+      ["wl", "stt", "voice note"],
+      ["stt", "agent", "transcript"],
+      ["agent", "tools", "tool call"],
+      ["tools", "agent", "result", "back"],
+      ["agent", "reply", "answer"],
+      ["tools", "db", "every step"],
+      ["db", "dash", "live"],
+    ],
+    runs: [
+      {
+        item: "“Take a screenshot”",
+        steps: [
+          ["tg", "I send a voice note from my phone: “take a screenshot”."],
+          ["wl", "My Telegram ID is on the list, so it goes through."],
+          ["stt", "faster-whisper turns the voice note into text, on my own machine."],
+          ["agent", "The agent reads the request and picks the screenshot tool."],
+          ["tools", "The tool runs on my PC and saves the image."],
+          ["agent", "The result comes back to the agent."],
+          ["reply", "The screenshot arrives in my Telegram chat."],
+        ],
+      },
+      {
+        item: "Unknown sender",
+        steps: [
+          ["tg", "Someone else finds the bot and sends it a message."],
+          ["wl", "Their ID is not on the list."],
+          ["drop", "Dropped without a reply. The attempt is logged."],
+        ],
+      },
+      {
+        item: "Tool call #20",
+        steps: [
+          ["tools", "Every tool call, whatever triggered it..."],
+          ["db", "...is saved with its input, its result and the agent's reasoning..."],
+          ["dash", "...and streamed live to the dashboard, so I can see exactly what it did and why."],
+        ],
+      },
+    ],
+    still: "Only my messages get through, and every step it takes is saved and shown on the dashboard.",
+  },
   decisions: [
     {
       title: "Only I can talk to it",
@@ -130,28 +251,76 @@ export const valkyrie: Chapter = {
   facts: "25 tools, 7 dashboard pages, 26 pages of docs, and about 3,100 lines of Python.",
   stack: "Python, aiogram, LangGraph, faster-whisper, FastAPI, SQLite, Next.js, React",
   repo: "https://github.com/sivraamkrishnankv/VALKYRIE",
-  repoLabel: "github.com/sivraamkrishnankv/VALKYRIE",
+  repoLabel: "sivraamkrishnankv/VALKYRIE",
 };
 
 export const shuttle: Chapter = {
-  id: "shuttle-poll",
-  number: "Chapter three",
+  slug: "shuttle-poll",
+  number: "03",
   name: "shuttle-poll",
   tagline: "A WhatsApp poll that posts itself, for ₹0 a month.",
+  proof: ["Starts a median of 33 seconds after 5:30 PM", "Each service holds only its own key", "Nothing hosted, nothing paid for"],
+  tags: ["GitHub Actions", "cron-job.org", "Python"],
   story: [
     "My badminton group needs to know who is playing tomorrow. Someone used to post the poll by hand every day. Now “Playing tomorrow?” appears in the group at 5:30 PM on its own.",
     "Nothing is hosted and nothing is paid for. Three free services each do one job, and none of them holds more access than it needs.",
   ],
-  layersTitle: "shuttle-poll, taken apart",
-  drawing: "chain",
-  compact: true,
-  layers: [
-    { glyph: "clock", title: "cron-job.org", detail: "Fires at 17:30 India time, every day." },
-    { glyph: "play", title: "GitHub Actions", detail: "Starts the job with the secrets it needs." },
-    { glyph: "code", title: "send_poll.py", detail: "47 lines of standard-library Python. No packages to install." },
-    { glyph: "send", title: "Green API", detail: "The WhatsApp gateway that posts the Yes / No poll." },
-    { glyph: "poll", title: "The group", detail: "One tap to answer, in the app everyone already uses." },
-  ],
+  flowTitle: "One evening of shuttle-poll, and the two that went wrong",
+  flowIntro: "The normal run takes under 20 seconds. The other two runs are real failures, and they are why the next change is a check that fails loudly.",
+  flow: {
+    label: "shuttle-poll run",
+    cols: 5,
+    kinds: { you: "People", fail: "What broke" },
+    nodes: [
+      { id: "cron", kind: "source", title: "cron-job.org", body: "Fires at 17:30 India time, every day.", d: [1, 1], m: [1, 1] },
+      { id: "gha", kind: "code", title: "GitHub Actions", body: "Starts the workflow with the secrets it needs.", d: [2, 1], m: [1, 2] },
+      { id: "py", kind: "code", title: "send_poll.py", body: "47 lines of standard-library Python. No packages to install.", d: [3, 1], m: [1, 3] },
+      { id: "typo", kind: "fail", title: "WA_GROUPID", body: "One renamed setting. 11 evenings failed.", d: [3, 2], m: [2, 3], small: true },
+      { id: "green", kind: "code", title: "Green API", body: "The WhatsApp gateway that posts the Yes / No poll.", d: [4, 1], m: [1, 4] },
+      { id: "silent", kind: "fail", title: "“OK”, but unlinked", body: "Green for 10 days. Nothing arrived.", d: [4, 2], m: [2, 4], small: true },
+      { id: "group", kind: "you", title: "The group", body: "One tap to answer, in the app everyone already uses.", d: [5, 1], m: [1, 5] },
+    ],
+    edges: [
+      ["cron", "gha", "one-repo token"],
+      ["gha", "py", "secrets"],
+      ["py", "typo", "KeyError"],
+      ["py", "green", "sendPoll"],
+      ["green", "silent", "200 OK"],
+      ["green", "group", "Yes / No poll"],
+    ],
+    runs: [
+      {
+        item: "Today, 17:30",
+        steps: [
+          ["cron", "cron-job.org fires at 17:30. GitHub's own scheduler ran 4 to 8 hours late, so it is not used."],
+          ["gha", "Its token can start this one workflow and nothing else."],
+          ["py", "The script reads the WhatsApp token from GitHub Secrets. The scheduler never sees it."],
+          ["green", "Green API accepts the poll for the group."],
+          ["group", "“Playing tomorrow?” goes out. The run started a median of 33 seconds after 5:30. A delivery check is the next change."],
+        ],
+      },
+      {
+        item: "21 Sep – 1 Oct",
+        steps: [
+          ["cron", "Same trigger, every evening."],
+          ["gha", "The workflow starts."],
+          ["py", "An edit had renamed one setting to WA_GROUPID."],
+          ["typo", "The script crashed 11 evenings in a row. I caught it while moving to the new scheduler and fixed it in one commit."],
+        ],
+      },
+      {
+        item: "The quiet 10 days",
+        steps: [
+          ["cron", "The trigger fires."],
+          ["gha", "The workflow runs."],
+          ["py", "The script sends the poll."],
+          ["green", "The WhatsApp session behind the gateway had been unlinked."],
+          ["silent", "It still answered “OK”. Every dashboard was green while no poll reached the group. A success code is not delivery."],
+        ],
+      },
+    ],
+    still: "Three free services, each with one job. The two red boxes are real failures, told below.",
+  },
   decisions: [
     {
       title: "On time, not roughly on time",
@@ -180,10 +349,11 @@ export const shuttle: Chapter = {
   facts: "Runs start a median of 33 seconds after 5:30 PM and finish in under 20 seconds.",
   stack: "GitHub Actions, cron-job.org, Green API, Python",
   repo: "https://github.com/sivraamkrishnankv/shuttle-poll",
-  repoLabel: "github.com/sivraamkrishnankv/shuttle-poll",
+  repoLabel: "sivraamkrishnankv/shuttle-poll",
 };
 
 export const chapters = [scout, valkyrie, shuttle];
+export const chapterBySlug = (slug: string) => chapters.find((c) => c.slug === slug);
 
 export const work = {
   heading: "At work",
@@ -209,8 +379,8 @@ export const work = {
   ],
   note: "These systems belong to the companies, so I can walk you through the engineering but cannot show the code.",
   smaller: [
-    { name: "mlgos", body: "A C++ linear-regression extension for Python (pybind11), published on PyPI." },
-    { name: "Fault detection", body: "A YOLOv5 detector, deployed with Docker, AWS ECR and GitHub Actions CI/CD." },
+    { name: "mlgos", body: "A C++ linear-regression extension for Python (pybind11), published on PyPI.", href: "https://pypi.org/project/mlgos/", linkLabel: "PyPI" },
+    { name: "Fault detection", body: "A YOLOv5 detector, deployed with Docker, AWS ECR and GitHub Actions CI/CD.", href: "", linkLabel: "" },
   ],
 };
 
@@ -218,7 +388,7 @@ export const about = {
   heading: "How I work",
   body: [
     "I start from what must never go wrong, put that rule in code, and keep a person in charge of the decisions that matter.",
-    "When something breaks, I write down what happened and change the system so it cannot break the same way twice. Each chapter above has its own example.",
+    "When something breaks, I write down what happened and change the system so it cannot break the same way twice. Each case study has its own example.",
   ],
   facts: [
     { label: "Education", body: "B.Tech in Artificial Intelligence and Data Science, Sri Shakthi Institute of Engineering and Technology, 2022 – 2026. CGPA 8.19." },
